@@ -11,7 +11,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
 
-static const char *CLIPSHORT_EVENT_WINDOW_TITLE = "clipshort_event_window";
+#include "clipboard.h"
 
 static const long XFIXES_SELECTION_ANY_NOTIFY_MASK =
     XFixesSetSelectionOwnerNotifyMask      |
@@ -50,60 +50,13 @@ clipshort_perform_head_request(CURL *curl, char *url)
     return curl_easy_perform(curl);
 }
 
-static inline Window
-clipshort_create_event_window(Display *display)
-{
-    const Window event_window = XCreateSimpleWindow(
-        display,                    /* Display      */
-        DefaultRootWindow(display), /* Parent       */
-        0,                          /* X            */
-        0,                          /* Y            */
-        1,                          /* Width        */
-        1,                          /* Height       */
-        0,                          /* Border width */
-        0,                          /* Border       */
-        0                           /* Background   */
-    );
-    XStoreName(display, event_window, CLIPSHORT_EVENT_WINDOW_TITLE);
-
-    return event_window;
-}
-
-static void
-clipshort_init_xfixes(Display *display,
-                      Window event_window,
-                      Atom *selections,
-                      size_t selections_count,
-                      int *event_base_return,
-                      int *error_base_return)
-{
-    assert(XFixesQueryExtension(display, event_base_return, error_base_return));
-
-    for (size_t i = 0; i < selections_count; ++i) {
-        XFixesSelectSelectionInput(
-            display,
-            event_window,
-            selections[i],
-            XFIXES_SELECTION_ANY_NOTIFY_MASK
-        );
-    }
-}
-
-static void
-clipshort_init_curl(CURL **curl)
-{
-    curl_global_init(CURL_GLOBAL_ALL);
-    *curl = curl_easy_init();
-    curl_easy_setopt(curl, CURLOPT_FAILONERROR, true);
-}
-
 int
 main(void)
 {
     /* Xlib */
     Atom    *standard_selections;
     Display *display;
-    Window   event_window;
+    Window   default_root;
 
     /* Xfixes */
     int error_base;
@@ -112,24 +65,30 @@ main(void)
     /* Curl */
     CURL *curl;
 
+    /* Xlib initialization */
     if (!(display = XOpenDisplay(NULL))) {
         return EXIT_FAILURE;
     }
-    event_window        = clipshort_create_event_window(display);
+    default_root        = DefaultRootWindow(display);
     standard_selections = clipshort_get_standard_selections(display);
 
-    clipshort_init_xfixes(
-        display,
-        event_window,
-        standard_selections,
-        STANDARD_SELECTIONS_COUNT,
-        &event_base,
-        &error_base
-    );
-    clipshort_init_curl(&curl);
+    /* Xfixes initialization */
+    assert(XFixesQueryExtension(display, &event_base, &error_base));
+
+    for (size_t i = 0; i < STANDARD_SELECTIONS_COUNT; ++i) {
+        XFixesSelectSelectionInput(display, default_root, standard_selections[i], XFIXES_SELECTION_ANY_NOTIFY_MASK);
+    }
+
+    /* Curl initialization */
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, true);
+
+    clipboard_init(display);
 
     /* Listening for clipboard changes */
     while(true) {
+        char                       *selection_content;
         XEvent                      event;
         XFixesSelectionNotifyEvent *selection_event;
 
@@ -138,6 +97,7 @@ main(void)
         if (event.type != (event_base + XFixesSelectionNotify)) {
             continue;
         }
-        selection_event = (XFixesSelectionNotifyEvent *) &event;
+        selection_event   = (XFixesSelectionNotifyEvent *) &event;
+        selection_content = clipboard_get_selection_content(display, selection_event, XA_STRING);
     }
 }

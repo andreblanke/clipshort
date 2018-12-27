@@ -12,5 +12,6 @@ link_libraries(${X11_Xfixes_LIB})
 add_executable(
     ${PROJECT_NAME}
 
+    clipboard.c
     clipshort.c
 )
