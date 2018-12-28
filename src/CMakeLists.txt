@@ -1,3 +1,5 @@
+find_package(PkgConfig REQUIRED)
+
 find_package(CURL REQUIRED)
 find_package(X11  REQUIRED)
 
@@ -14,4 +16,5 @@ add_executable(
 
     clipboard.c
     clipshort.c
+    urlshort.c
 )

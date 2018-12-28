@@ -13,6 +13,9 @@ clipshort/
  │   ├─ clipboard.c
  │   ├─ clipboard.h
  │   ├─ clipshort.c
- │   └─ CMakeLists.txt
+ │   ├─ clipshort.h
+ │   ├─ CMakeLists.txt
+ │   ├─ urlshort.c
+ │   └─ urlshort.h
  └─ CMakeLists.txt
 ```

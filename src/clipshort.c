@@ -1,3 +1,5 @@
+#include "clipshort.h"
+
 #include <assert.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -12,6 +14,7 @@
 #include <X11/extensions/Xfixes.h>
 
 #include "clipboard.h"
+#include "urlshort.h"
 
 static const long XFIXES_SELECTION_ANY_NOTIFY_MASK =
     XFixesSetSelectionOwnerNotifyMask      |
@@ -63,10 +66,13 @@ main(void)
     int event_base;
 
     /* Curl */
-    CURL *curl;
+    CURL  *curl;
+#if CURL_URLAPI_SUPPORTED
+    CURLU *curlu;
+#endif
 
     /* Xlib initialization */
-    if (!(display = XOpenDisplay(NULL))) {
+    if ((display = XOpenDisplay(NULL)) == NULL) {
         return EXIT_FAILURE;
     }
     default_root        = DefaultRootWindow(display);
@@ -81,13 +87,16 @@ main(void)
 
     /* Curl initialization */
     curl_global_init(CURL_GLOBAL_ALL);
-    curl = curl_easy_init();
+    curl  = curl_easy_init();
+#if CURL_URLAPI_SUPPORTED
+    curlu = curl_url();
+#endif
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, true);
 
     clipboard_init(display);
 
     /* Listening for clipboard changes */
-    while(true) {
+    while (true) {
         char                       *selection_content;
         XEvent                      event;
         XFixesSelectionNotifyEvent *selection_event;
@@ -99,5 +108,14 @@ main(void)
         }
         selection_event   = (XFixesSelectionNotifyEvent *) &event;
         selection_content = clipboard_get_selection_content(display, selection_event, XA_STRING);
+
+        if (clipshort_perform_head_request(curl, selection_content) == CURLE_OK
+                && !urlshort_is_shortened(curlu, selection_content)) {
+
+        }
     }
+    curl_easy_cleanup(curl);
+#if CURL_URLAPI_SUPPORTED
+    curl_url_cleanup(curlu);
+#endif
 }
