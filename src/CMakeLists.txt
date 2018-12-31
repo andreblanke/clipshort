@@ -1,10 +1,8 @@
-find_package(PkgConfig REQUIRED)
-
-find_package(CURL REQUIRED)
-find_package(X11  REQUIRED)
+find_package(CURL  REQUIRED)
+find_package(X11   REQUIRED)
 
 if (NOT X11_Xfixes_FOUND)
-    message(FATAL_ERROR)
+    message(FATAL_ERROR "")
 endif ()
 
 link_libraries(${CURL_LIBRARIES})
@@ -16,5 +14,5 @@ add_executable(
 
     clipboard.c
     clipshort.c
-    urlshort.c
+    web.c
 )
