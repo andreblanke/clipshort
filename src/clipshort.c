@@ -1,7 +1,6 @@
-#include "clipshort.h"
-
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdnoreturn.h>
 
@@ -11,24 +10,28 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
 
-#include "clipboard.h"
-#include "web.h"
+#include "net.h"
+#include "x11.h"
+
+#define XFixesSelectionAnyNotifyMask XFixesSetSelectionOwnerNotifyMask      | \
+                                     XFixesSelectionWindowDestroyNotifyMask | \
+                                     XFixesSelectionClientCloseNotifyMask
 
 /*
- * The following variables should be treated as constants and not be modified
- * in any way except by the various init_* procedures which are invoked only a
- * single time by main.
+ * The following variables should be treated as constants and thus not be
+ * modified in any way except by the various init_* procedures which are
+ * invoked exactly once from main.
  *
  * They are declared as global static variables to remove clutter from main and
- * avoid having long parameter lists inside the various init_* procedures.
+ * avoid having long parameter lists inside the init_* procedures.
  */
 
 /* Xlib */
 static Display *display;
 static Window   default_root;
 
-static Atom   *standard_selections;
-static size_t  standard_selections_count;
+static Atom    *standard_selections;
+static size_t   standard_selections_count;
 
 /* XFixes */
 static int event_base;
@@ -38,33 +41,14 @@ static int error_base;
 static CURL  *curl;
 static CURLU *curlu;
 
-static Atom *
-clipshort_get_standard_selections(Display *display,
-                                  size_t *standard_selections_count_return)
-{
-    static const size_t STANDARD_SELECTIONS_COUNT = 3;
-
-    Atom *selections = malloc(STANDARD_SELECTIONS_COUNT * sizeof(Atom));
-
-    if (!selections) {
-        return NULL;
-    }
-    selections[0] = XInternAtom(display, "CLIPBOARD", false);
-    selections[1] = XA_PRIMARY;
-    selections[2] = XA_SECONDARY;
-
-    *standard_selections_count_return = STANDARD_SELECTIONS_COUNT;
-
-    return selections;
-}
-
 static noreturn void
-clipshort_handle_clipboard_changes(Display *display, CURL *curl, CURLU *curlu, int event_base)
+clipshort_handle_clipboard_changes()
 {
     while (true) {
         char                       *selection_content;
-        XEvent                      event;
+        unsigned long               selection_content_length;
         XFixesSelectionNotifyEvent *selection_event;
+        XEvent                      event;
 
         XNextEvent(display, &event);
 
@@ -72,20 +56,22 @@ clipshort_handle_clipboard_changes(Display *display, CURL *curl, CURLU *curlu, i
             continue;
         }
         selection_event   = (XFixesSelectionNotifyEvent *) &event;
-        selection_content = clipboard_get_selection_content(
+        selection_content = x11_get_selection_content(
             display,
             selection_event,
-            XA_STRING
+            XA_STRING,
+            &selection_content_length
         );
+        if (net_perform_head_request(curl, selection_content) == CURLE_OK) {
+            char *hostname = net_get_hostname(curlu, selection_content);
 
-        if (web_perform_head_request(curl, selection_content) == CURLE_OK) {
-            char *hostname;
-
-            hostname = web_get_hostname(curlu, selection_content);
-
-            printf("%s\n", hostname);
-
-            if (!web_is_shortened(hostname)) {
+            if (!net_is_shortened(hostname)) {
+                char *shortened = net_shorten_url(
+                    curl,
+                    selection_content,
+                    selection_content_length,
+                    hostname
+                );
             }
             curl_free(hostname);
         }
@@ -99,7 +85,7 @@ clipshort_init_xlib()
         return false;
     }
     default_root        = DefaultRootWindow(display);
-    standard_selections = clipshort_get_standard_selections(
+    standard_selections = x11_get_standard_selections(
         display,
         &standard_selections_count
     );
@@ -156,7 +142,5 @@ main(void)
 
         return EXIT_FAILURE;
     }
-    clipboard_init(display);
-
-    clipshort_handle_clipboard_changes(display, curl, curlu, event_base);
+    clipshort_handle_clipboard_changes();
 }
