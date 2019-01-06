@@ -6,13 +6,14 @@
 
 #include <curl/curl.h>
 
+#include <libclipboard.h>
+
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
 
 #include "net.h"
 #include "urlshort.h"
-#include "x11.h"
 
 #define XFixesSelectionAnyNotifyMask XFixesSetSelectionOwnerNotifyMask      | \
                                      XFixesSelectionWindowDestroyNotifyMask | \
