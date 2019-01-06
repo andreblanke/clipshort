@@ -7,7 +7,7 @@ if (NOT X11_Xfixes_FOUND)
 endif ()
 
 link_libraries(${CURL_LIBRARIES})
-link_libraries(${libclipboard_LIB})
+link_libraries(${LIBCLIPBOARD_LIBRARIES})
 link_libraries(${X11_LIBRARIES})
 link_libraries(${X11_Xfixes_LIB})
 
