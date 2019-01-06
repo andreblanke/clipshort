@@ -14,5 +14,6 @@ add_executable(
 
     clipshort.c
     net.c
+    urlshort.c
     x11.c
 )

@@ -11,6 +11,7 @@
 #include <X11/extensions/Xfixes.h>
 
 #include "net.h"
+#include "urlshort.h"
 #include "x11.h"
 
 #define XFixesSelectionAnyNotifyMask XFixesSetSelectionOwnerNotifyMask      | \
@@ -63,16 +64,17 @@ clipshort_handle_clipboard_changes()
             &selection_content_length
         );
         if (net_perform_head_request(curl, selection_content) == CURLE_OK) {
-            char *hostname = net_get_hostname(curlu, selection_content);
+            char   *hostname  = net_get_hostname(curlu, selection_content);
+            String *shortened = urlshort_shorten_url(
+                curl,
+                selection_content,
+                selection_content_length,
+                hostname
+            );
 
-            if (!net_is_shortened(hostname)) {
-                char *shortened = net_shorten_url(
-                    curl,
-                    selection_content,
-                    selection_content_length,
-                    hostname
-                );
-            }
+            printf("%s\n", shortened->content);
+
+            urlshort_free(shortened);
             curl_free(hostname);
         }
     }
