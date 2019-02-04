@@ -9,13 +9,16 @@
 
 ```
 clipshort/
+ ├─ cmake/
+ │   └─ FindLibClipboard.cmake
  ├─ src/
- │   ├─ clipboard.c
- │   ├─ clipboard.h
  │   ├─ clipshort.c
- │   ├─ clipshort.h
  │   ├─ CMakeLists.txt
+ │   ├─ net.c
+ │   ├─ net.h
+ │   ├─ string.h
  │   ├─ urlshort.c
  │   └─ urlshort.h
- └─ CMakeLists.txt
+ ├─ CMakeLists.txt
+ └─ PKGBUILD
 ```
