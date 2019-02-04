@@ -13,16 +13,16 @@ find_path(LIBCLIPBOARD_INCLUDE_DIR
 mark_as_advanced(LIBCLIPBOARD_INCLUDE_DIR)
 
 find_library(LIBCLIPBOARD_LIBRARY
-    NAMES clipboard
+    names clipboard
     PATHS ${PC_LIBCLIPBOARD_LIBRARY_DIRS}
 )
 mark_as_advanced(LIBCLIPBOARD_LIBRARY)
 
 # Commits prior to 227588f to the libclipboard git repository did not correctly
 # define a version in the libclipboard.pc generated during installation.
-# We first attempt to use the version found by pkgconfig. If that version
-# string is empty we try the less realiable way of reading the two macros
-# LIBCLIPBOARD_VERSION_MAJOR and LIBCLIPBOARD_VERSION_MINOR from
+# We first attempt to use the version found by pkgconfig.
+# If that version string is empty we try the less realiable way of reading the
+# two macros LIBCLIPBOARD_VERSION_MAJOR and LIBCLIPBOARD_VERSION_MINOR from
 # libclipboard-config.h and combine those two into LIBCLIPBOARD_VERSION.
 if (PC_LIBCLIPBOARD_VERSION)
     set(LIBCLIPBOARD_VERSION "${PC_LIBCLIPBOARD_VERSION}")
@@ -42,14 +42,12 @@ elseif (LIBCLIPBOARD_INCLUDE_DIR)
         string(REGEX REPLACE "${_LIBCLIPBOARD_VERSION_MINOR_REGEX}" "" _LIBCLIPBOARD_VERSION_MINOR "${_LIBCLIPBOARD_VERSION_MINOR}")
 
         set(LIBCLIPBOARD_VERSION "${_LIBCLIPBOARD_VERSION_MAJOR}.${_LIBCLIPBOARD_VERSION_MINOR}")
-
-        message(STATUS "${LIBCLIPBOARD_VERSION}")
     endif ()
 endif ()
 mark_as_advanced(LIBCLIPBOARD_VERSION)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(libclipboard
+find_package_handle_standard_args(LibClipboard
     FOUND_VAR     LIBCLIPBOARD_FOUND
     REQUIRED_VARS LIBCLIPBOARD_INCLUDE_DIR
                   LIBCLIPBOARD_LIBRARY
@@ -67,7 +65,7 @@ if (LIBCLIPBOARD_FOUND)
 endif ()
 
 if (LIBCLIPBOARD_FOUND AND NOT TARGET LibClipboard::LibClipboard)
-    add_library(libclipboard::libclipboard UNKNOWN IMPORTED)
+    add_library(LibClipboard::LibClipboard UNKNOWN IMPORTED)
     set_target_properties(LibClipboard::LibClipboard PROPERTIES
         IMPORTED_LOCATION             "${LIBCLIPBOARD_LIBRARY}"
         INTERFACE_COMPILE_OPTIONS     "${PC_LIBCLIPBOARD_CFLAGS_OTHER}"

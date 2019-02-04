@@ -25,23 +25,41 @@
  * invoked exactly once from main.
  *
  * They are declared as global static variables to remove clutter from main and
- * avoid having long parameter lists inside the init_* procedures.
+ * avoid having long parameter lists inside the various init_* procedures.
  */
 
 /* Xlib */
 static Display *display;
 static Window   default_root;
 
-static Atom    *standard_selections;
-static size_t   standard_selections_count;
+static Atom     XA_CLIPBOARD;
 
 /* XFixes */
 static int event_base;
 static int error_base;
 
-/* Curl */
+/* libcurl */
 static CURL  *curl;
 static CURLU *curlu;
+
+/* libclipboard */
+static clipboard_c *clipboard;
+
+static clipboard_mode
+clipshort_atom_to_clipboard_mode(Atom atom)
+{
+    if (atom == XA_CLIPBOARD) {
+        return LCB_CLIPBOARD;
+    }
+    if (atom == XA_PRIMARY) {
+        return LCB_SELECTION;
+    }
+#ifdef LCB_SELECTION
+    if (atom == XA_SECONDARY) {
+        return LCB_SECONDARY;
+    }
+#endif
+}
 
 static noreturn void
 clipshort_handle_clipboard_changes()
@@ -49,6 +67,7 @@ clipshort_handle_clipboard_changes()
     while (true) {
         char                       *selection_content;
         unsigned long               selection_content_length;
+        clipboard_mode              clipboard_mode;
         XFixesSelectionNotifyEvent *selection_event;
         XEvent                      event;
 
@@ -58,12 +77,13 @@ clipshort_handle_clipboard_changes()
             continue;
         }
         selection_event   = (XFixesSelectionNotifyEvent *) &event;
-        selection_content = x11_get_selection_content(
-            display,
-            selection_event,
-            XA_STRING,
-            &selection_content_length
+        clipboard_mode    = clipshort_atom_to_clipboard_mode(selection_event->selection);
+        selection_content = clipboard_text_ex(
+            clipboard,
+            &selection_content_length,
+            clipboard_mode
         );
+
         if (net_perform_head_request(curl, selection_content) == CURLE_OK) {
             char   *hostname  = net_get_hostname(curlu, selection_content);
             String *shortened = urlshort_shorten_url(
@@ -72,8 +92,12 @@ clipshort_handle_clipboard_changes()
                 selection_content_length,
                 hostname
             );
-
-            printf("%s\n", shortened->content);
+            clipboard_set_text_ex(
+                clipboard,
+                shortened->content,
+                shortened->length,
+                clipboard_mode
+            );
 
             urlshort_free(shortened);
             curl_free(hostname);
@@ -81,68 +105,41 @@ clipshort_handle_clipboard_changes()
     }
 }
 
-static bool
-clipshort_init_xlib()
-{
-    if ((display = XOpenDisplay(NULL)) == NULL) {
-        return false;
-    }
-    default_root        = DefaultRootWindow(display);
-    standard_selections = x11_get_standard_selections(
-        display,
-        &standard_selections_count
-    );
-    return true;
-}
-
-static bool
-clipshort_init_xfixes()
-{
-    if (!XFixesQueryExtension(display, &event_base, &error_base)) {
-        return false;
-    }
-    for (size_t i = 0; i < standard_selections_count; ++i) {
-        XFixesSelectSelectionInput(
-            display,
-            default_root,
-            standard_selections[i],
-            XFixesSelectionAnyNotifyMask
-        );
-    }
-    return true;
-}
-
-static bool
-clipshort_init_curl()
-{
-    if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
-        return false;
-    }
-    if ((curl = curl_easy_init()) == NULL) {
-        return false;
-    }
-    if ((curlu = curl_url()) == NULL) {
-        return false;
-    }
-    return (curl_easy_setopt(curl, CURLOPT_FAILONERROR, true) == CURLE_OK);
-}
-
 int
 main(void)
 {
-    if (!clipshort_init_xlib()) {
+    /* Xlib initialization */
+    if ((display = XOpenDisplay(NULL)) == NULL) {
         fprintf(stderr, "E: Unable to open display.\n");
 
         return EXIT_FAILURE;
     }
-    if (!clipshort_init_xfixes()) {
+    default_root = DefaultRootWindow(display);
+    XA_CLIPBOARD = XInternAtom(display, "CLIPBOARD", false);
+
+    /* XFixes initialization */
+    if (!XFixesQueryExtension(display, &event_base, &error_base)) {
         fprintf(stderr, "E: Unable to query XFixes extension.\n");
 
         return EXIT_FAILURE;
     }
-    if (!clipshort_init_curl()) {
-        fprintf(stderr, "E: An error occurred initializing libcurl.\n");
+    XFixesSelectSelectionInput(display, default_root, XA_PRIMARY,   XFixesSelectionAnyNotifyMask);
+    XFixesSelectSelectionInput(display, default_root, XA_CLIPBOARD, XFixesSelectionAnyNotifyMask);
 
+    /* libcurl initialization */
+    if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK
+            || (curl  = curl_easy_init()) == NULL
+            || (curlu = curl_url())       == NULL
+            || curl_easy_setopt(curl, CURLOPT_FAILONERROR, true) != CURLE_OK) {
+        fprintf(stderr, "E: Unable to initialize libcurl.\n");
+
+        return EXIT_FAILURE;
+    }
+
+    /* libclipboard initialization */
+    if ((clipboard = clipboard_new(NULL)) == NULL) {
+        fprintf(stderr, "E: An error occurred initializing libclipboard.\n");
+        
         return EXIT_FAILURE;
     }
     clipshort_handle_clipboard_changes();

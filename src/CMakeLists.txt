@@ -1,5 +1,5 @@
-find_package(LibClipboard REQUIRED)
 find_package(CURL         REQUIRED)
+find_package(LibClipboard REQUIRED)
 find_package(X11          REQUIRED)
 
 if (NOT X11_Xfixes_FOUND)
@@ -17,5 +17,4 @@ add_executable(
     clipshort.c
     net.c
     urlshort.c
-    x11.c
 )
