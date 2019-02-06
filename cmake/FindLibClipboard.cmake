@@ -65,7 +65,7 @@ if (LIBCLIPBOARD_FOUND)
 endif ()
 
 if (LIBCLIPBOARD_FOUND AND NOT TARGET LibClipboard::LibClipboard)
-    add_library(LibClipboard::LibClipboard UNKNOWN IMPORTED)
+    add_library(LibClipboard::LibClipboard STATIC IMPORTED)
     set_target_properties(LibClipboard::LibClipboard PROPERTIES
         IMPORTED_LOCATION             "${LIBCLIPBOARD_LIBRARY}"
         INTERFACE_COMPILE_OPTIONS     "${PC_LIBCLIPBOARD_CFLAGS_OTHER}"

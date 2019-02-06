@@ -1,2 +1,6 @@
+# CLion files
 .idea
 cmake-build-debug
+
+# Visual Studio Code project settings
+.vscode
